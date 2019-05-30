@@ -22,6 +22,21 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def get_navs(cls):
+        category_list = cls.objects.filter(status=cls.STATUS_NORMAL)
+        nav_list = []
+        normal_list = []
+        for item in category_list:
+            if item.is_nav:
+                nav_list.append(item)
+            else:
+                normal_list.append(item)
+        return {
+            'navs': nav_list,
+            'categories': normal_list,
+        }
+
 
 class Tag(models.Model):
     STATUS_NORMAL = 1
@@ -75,6 +90,8 @@ class Post(models.Model):
         auto_now_add=True,
         verbose_name='创建时间'
     )
+    pv = models.PositiveIntegerField(default=1)
+    uv = models.PositiveIntegerField(default=1)
 
     class Meta:
         verbose_name = verbose_name_plural = '文章'
@@ -83,3 +100,34 @@ class Post(models.Model):
     def __str__(self):
         return self.title
 
+    @staticmethod
+    def get_by_tag(tag_id):
+        try:
+            tag = Tag.objects.get(id=tag_id)
+        except Tag.DoesNotExist:
+            tag = None
+            post_list = []
+        else:
+            post_list = tag.post_set.filter(status=Post.STATUS_NORMAL)\
+                .select_related('owner', 'category')
+        return post_list, tag
+
+    @staticmethod
+    def get_by_category(category_id):
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            category = None
+            post_list = []
+        else:
+            post_list = category.post_set.filter(status=Post.STATUS_NORMAL)\
+                .select_related('owner', 'category')
+        return post_list, category
+
+    @classmethod
+    def latest_posts(cls):
+        return cls.objects.filter(status=cls.STATUS_NORMAL)
+
+    @classmethod
+    def hot_posts(cls):
+        return cls.objects.filter(status=cls.STATUS_NORMAL).order_by('-pv')
